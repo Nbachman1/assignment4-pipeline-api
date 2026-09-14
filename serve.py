@@ -15,6 +15,7 @@ from pathlib import Path
 
 import joblib
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -43,6 +44,13 @@ app = FastAPI(
     description="Fitted TF-IDF search pipeline over a corpus of programming/CS quotes.",
     version="1.0.0",
     lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
