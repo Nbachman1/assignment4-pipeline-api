@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CS Quotes Search</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #2a2e38;
+    --text: #e8eaed;
+    --muted: #9aa0ac;
+    --accent: #6ea8fe;
+    --accent-dim: #2c4a7c;
+    --error: #ff6b6b;
+    --ok: #4caf7d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+  }
+  header { margin-bottom: 28px; }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .dot.ok { background: var(--ok); }
+  .dot.err { background: var(--error); }
+
+  form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  input[type="text"] {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--accent); }
+  button {
+    background: var(--accent);
+    color: #08111f;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin: 0 0 28px 2px;
+  }
+  .controls input[type="number"] {
+    width: 52px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.82rem;
+  }
+
+  .error-box {
+    background: rgba(255,107,107,0.08);
+    border: 1px solid rgba(255,107,107,0.35);
+    color: var(--error);
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+    display: none;
+    white-space: pre-wrap;
+  }
+
+  .results { display: flex; flex-direction: column; gap: 12px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .quote { font-size: 1rem; line-height: 1.5; margin: 0 0 10px; }
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .author { color: var(--accent); }
+  .score {
+    font-variant-numeric: tabular-nums;
+    background: var(--accent-dim);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .empty {
+    color: var(--muted);
+    font-size: 0.88rem;
+    padding: 20px 0;
+  }
+  footer {
+    margin-top: 40px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  footer code {
+    background: var(--panel);
+    padding: 1px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>CS Quotes Search</h1>
+      <div class="sub">
+        Semantic search over a fitted scikit-learn <code>Pipeline</code>
+        (custom text-cleaning transformer &rarr; TF-IDF) served live from Modal.
+      </div>
+      <div class="status">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">checking API…</span>
+      </div>
+    </header>
+
+    <form id="searchForm">
+      <input type="text" id="query" placeholder="Try: debugging, simplicity, machine learning…" autocomplete="off" maxlength="300" />
+      <button type="submit" id="submitBtn">Search</button>
+    </form>
+    <div class="controls">
+      <label for="topK">results</label>
+      <input type="number" id="topK" value="5" min="1" max="20" />
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+    <div class="results" id="results">
+      <div class="empty">Run a search to see the nearest quotes by cosine similarity.</div>
+    </div>
+
+    <footer>
+      API: <code id="apiBase"></code>
+    </footer>
+  </div>
+
+<script>
+  // Live Modal deployment — never localhost.
+  const API_BASE = "https://nbachman1--cs-quotes-search-api-fastapi-app.modal.run";
+
+  document.getElementById("apiBase").textContent = API_BASE;
+
+  const dot = document.getElementById("statusDot");
+  const statusText = document.getElementById("statusText");
+  const errorBox = document.getElementById("errorBox");
+  const results = document.getElementById("results");
+  const form = document.getElementById("searchForm");
+  const submitBtn = document.getElementById("submitBtn");
+
+  async function checkHealth() {
+    try {
+      const res = await fetch(`${API_BASE}/health`);
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const info = await fetch(`${API_BASE}/info`).then(r => r.json());
+      dot.className = "dot ok";
+      statusText.textContent = `API online — ${info.n_documents} quotes, sklearn ${info.sklearn_version}`;
+    } catch (err) {
+      dot.className = "dot err";
+      statusText.textContent = "API unreachable";
+    }
+  }
+
+  function showError(msg) {
+    errorBox.style.display = "block";
+    errorBox.textContent = msg;
+  }
+  function hideError() {
+    errorBox.style.display = "none";
+    errorBox.textContent = "";
+  }
+
+  function renderResults(items) {
+    if (!items.length) {
+      results.innerHTML = `<div class="empty">No results.</div>`;
+      return;
+    }
+    results.innerHTML = items.map(r => `
+      <div class="card">
+        <p class="quote">"${escapeHtml(r.text)}"</p>
+        <div class="meta">
+          <span class="author">— ${escapeHtml(r.author)}</span>
+          <span class="score">${r.score.toFixed(3)}</span>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    hideError();
+    const query = document.getElementById("query").value;
+    const topK = parseInt(document.getElementById("topK").value, 10);
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Searching…";
+    try {
+      const res = await fetch(`${API_BASE}/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, top_k: topK }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const detail = Array.isArray(data.detail)
+          ? data.detail.map(d => `${d.loc?.join(".")}: ${d.msg}`).join("\n")
+          : (data.detail || `HTTP ${res.status}`);
+        showError(`${res.status} — ${detail}`);
+        results.innerHTML = "";
+        return;
+      }
+      renderResults(data.results);
+    } catch (err) {
+      showError(`Network error: ${err.message}`);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Search";
+    }
+  });
+
+  checkHealth();
+</script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+{
+  "info": {
+    "name": "CS Quotes Search API",
+    "_postman_id": "b1e6f0d0-4f6a-4d1a-9e3a-cs-quotes-search",
+    "description": "Assertions against the deployed Modal API for the CS Quotes Search pipeline (Assignment 4). Covers health, pipeline info, a valid search (200), and an invalid search (422).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://nbachman1--cs-quotes-search-api-fastapi-app.modal.run"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response reports ok status', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pipeline Info",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/info", "host": ["{{base_url}}"], "path": ["info"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Metadata has required fields', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json).to.have.property('steps');",
+              "    pm.expect(json).to.have.property('built_at');",
+              "    pm.expect(json).to.have.property('sklearn_version');",
+              "    pm.expect(json.steps).to.include('cleaner');",
+              "    pm.expect(json.steps).to.include('tfidf');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search - valid (200)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"debugging is hard\",\n  \"top_k\": 3\n}"
+        },
+        "url": { "raw": "{{base_url}}/search", "host": ["{{base_url}}"], "path": ["search"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Returns requested number of results', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.results.length).to.eql(3);",
+              "});",
+              "pm.test('Each result has text, author, score', function () {",
+              "    const json = pm.response.json();",
+              "    json.results.forEach(r => {",
+              "        pm.expect(r).to.have.property('text');",
+              "        pm.expect(r).to.have.property('author');",
+              "        pm.expect(r).to.have.property('score');",
+              "    });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search - invalid empty query (422)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"\",\n  \"top_k\": 3\n}"
+        },
+        "url": { "raw": "{{base_url}}/search", "host": ["{{base_url}}"], "path": ["search"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 422', function () {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "pm.test('Error mentions query field', function () {",
+              "    const json = pm.response.json();",
+              "    const loc = json.detail[0].loc.join('.');",
+              "    pm.expect(loc).to.include('query');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search - invalid top_k out of bounds (422)",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"testing\",\n  \"top_k\": 999\n}"
+        },
+        "url": { "raw": "{{base_url}}/search", "host": ["{{base_url}}"], "path": ["search"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 422', function () {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "pm.test('Error mentions top_k field', function () {",
+              "    const json = pm.response.json();",
+              "    const loc = json.detail[0].loc.join('.');",
+              "    pm.expect(loc).to.include('top_k');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
