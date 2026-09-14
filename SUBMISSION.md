@@ -2,7 +2,7 @@
 
 **Modal API URL:** https://nbachman1--cs-quotes-search-api-fastapi-app.modal.run
 **API /docs URL:** https://nbachman1--cs-quotes-search-api-fastapi-app.modal.run/docs
-**Vercel URL:** _(fill in after `vercel --prod`)_
+**Vercel URL:** https://cs-quotes-search.vercel.app
 
 ## Description (3–5 sentences)
 
